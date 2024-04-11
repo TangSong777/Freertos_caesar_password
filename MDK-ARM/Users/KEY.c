@@ -104,7 +104,7 @@ void Key_specialscan(KEY_INDEX num, uint8_t *Key_flag)
 			*Key_flag = 1;
 			Keys[num].Count = 0;
 		}
-		Keys[num].Press = 0;
+		Keys[num].Press = 1;
 		if (HAL_GPIO_ReadPin(Keys[num].Port, Keys[num].Pin) == Keys[num].Level)
 			Keys[num].State = KEY_COMFIRM;
 		break;
@@ -125,7 +125,7 @@ void Key_specialscan(KEY_INDEX num, uint8_t *Key_flag)
 				Keys[num].PressTime = 100;
 			}
 			if (Keys[num].Count == 0)
-				Keys[num].Press = 1;
+				Keys[num].Press = 0;
 			Keys[num].State = KEY_RELEASE;
 		}
 		else
@@ -138,11 +138,11 @@ void Key_specialscan(KEY_INDEX num, uint8_t *Key_flag)
 			Keys[num].State = KEY_CHECK;
 		else if (Keys[num].PressTime)
 			Keys[num].PressTime--;
-		if (Keys[num].PressTime == 0 && Keys[num].Press == 0)
+		if (Keys[num].PressTime == 0 && Keys[num].Press)
 		{
 			*Key_flag = 3;
 			Keys[num].Count = 0;
-			Keys[num].Press = 1;
+			Keys[num].Press = 0;
 		}
 		break;
 	}
@@ -157,6 +157,7 @@ void Key_pressscan(KEY_INDEX num, uint8_t *Key_flag)
 	{
 	case KEY_CHECK:
 	{
+		Keys[num].Press = 1;
 		if (HAL_GPIO_ReadPin(Keys[num].Port, Keys[num].Pin) == Keys[num].Level)
 			Keys[num].State = KEY_COMFIRM;
 		break;
@@ -177,8 +178,11 @@ void Key_pressscan(KEY_INDEX num, uint8_t *Key_flag)
 	{
 		if (Keys[num].PressTime)
 			Keys[num].PressTime--;
-		if (Keys[num].PressTime == 0)
+		if (Keys[num].PressTime == 0 && Keys[num].Press)
+		{
 			*Key_flag = 3;
+			Keys[num].Press = 0;
+		}
 		if (HAL_GPIO_ReadPin(Keys[num].Port, Keys[num].Pin) != Keys[num].Level)
 		{
 			if (Keys[num].PressTime != 0)
