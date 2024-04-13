@@ -29,12 +29,25 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+typedef enum
+{
+	OUTPUT = 0,
+	EZINPUT = 1,
+	INPUT = 2
+} PUT_STATE; // ??????(????????л?)
 
+typedef enum
+{
+	mode1 = 0,
+	mode2 = 1,
+	mode3 = 2
+} LED_STATE;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define Bright GPIO_PIN_SET
+#define Dark GPIO_PIN_RESET
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -43,14 +56,389 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-
 /* USER CODE BEGIN PV */
-
+PUT_STATE PutState = OUTPUT; // 默认为输出信号模式
+LED_STATE LedState = mode1;
+uint8_t Key_flag = 0;	   // 按键标志定义
+uint32_t Bright_time = 0;  // 代表亮起的单位时间
+uint32_t Dark_time = 0;	   // 代表熄灭的单位时间
+uint8_t Start_ezinput = 0; // 定义开始接受标志
+uint8_t Start_input = 0;   // 定义开始接受标志
+uint8_t Morse_len = 0;	   // 定义摩尔斯密码长度
+uint8_t Str_len = 0;	   // 定义字符串长度
+uint8_t Space_num = 0;	   // 定义字符串中的空格数
+uint8_t T = 0;			   // 定义t
+uint8_t Morse[50] = {0};   // 定义数组储存摩尔斯密码
+uint8_t Str[200] = {0};	   // 定义数组储存字符串
+uint8_t test = 1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 void MX_FREERTOS_Init(void);
+void Delay_break(uint32_t ms)
+{
+	for (uint16_t i = 0; i < ms / 10; i++)
+	{
+		if (Key_flag)
+			break;
+		else
+			osDelay(10);
+	}
+}
+void Clear_array(uint8_t morse[], uint8_t morse_len)
+{
+	for (int temp = 0; temp < morse_len; temp++)
+		morse[temp] = 0;
+}
+
+void Transform_password(uint8_t str[], uint8_t str_len, uint8_t t)
+{
+	for (int i = 0; i < str_len; i++)
+	{
+		if (str[i] >= 'a' && str[i] <= 'z')
+		{
+			str[i] = (str[i] - 'a' - t + 26) % 26 + 'a';
+		}
+	};
+}
+
+int Judge(uint8_t str1[], const char str2[], int len)
+{
+	for (int i = 0; i < len; i++)
+	{
+		if (str1[i] == str2[i])
+			continue;
+		else
+			return 0;
+	}
+	return 1;
+}
+
+void Transform(uint8_t morse[], uint8_t str[], uint8_t morse_len, uint8_t str_len)
+{
+	switch (morse_len)
+	{
+	case 1:
+	{
+		if (Judge(morse, ".", morse_len))
+			str[str_len] = 'e';
+		if (Judge(morse, "-", morse_len))
+			str[str_len] = 't';
+		break;
+	}
+	case 2:
+	{
+		if (Judge(morse, ".-", morse_len))
+			str[str_len] = 'a';
+		if (Judge(morse, "..", morse_len))
+			str[str_len] = 'i';
+		if (Judge(morse, "--", morse_len))
+			str[str_len] = 'm';
+		if (Judge(morse, "-.", morse_len))
+			str[str_len] = 'n';
+		break;
+	}
+	case 3:
+	{
+		if (Judge(morse, "-..", morse_len))
+			str[str_len] = 'd';
+		if (Judge(morse, "--.", morse_len))
+			str[str_len] = 'g';
+		if (Judge(morse, "-.-", morse_len))
+			str[str_len] = 'k';
+		if (Judge(morse, "---", morse_len))
+			str[str_len] = 'o';
+		if (Judge(morse, ".-.", morse_len))
+			str[str_len] = 'r';
+		if (Judge(morse, "...", morse_len))
+			str[str_len] = 's';
+		if (Judge(morse, "..-", morse_len))
+			str[str_len] = 'u';
+		if (Judge(morse, ".--", morse_len))
+			str[str_len] = 'w';
+		break;
+	}
+	case 4:
+	{
+		if (Judge(morse, "-...", morse_len))
+			str[str_len] = 'b';
+		if (Judge(morse, "-.-.", morse_len))
+			str[str_len] = 'c';
+		if (Judge(morse, "..-.", morse_len))
+			str[str_len] = 'f';
+		if (Judge(morse, "....", morse_len))
+			str[str_len] = 'h';
+		if (Judge(morse, ".---", morse_len))
+			str[str_len] = 'j';
+		if (Judge(morse, ".-..", morse_len))
+			str[str_len] = 'l';
+		if (Judge(morse, ".--.", morse_len))
+			str[str_len] = 'p';
+		if (Judge(morse, "--.-", morse_len))
+			str[str_len] = 'q';
+		if (Judge(morse, "...-", morse_len))
+			str[str_len] = 'v';
+		if (Judge(morse, "-..-", morse_len))
+			str[str_len] = 'x';
+		if (Judge(morse, "-.--", morse_len))
+			str[str_len] = 'y';
+		if (Judge(morse, "--..", morse_len))
+			str[str_len] = 'z';
+		break;
+	}
+	}
+	Clear_array(morse, morse_len);
+}
+
+osThreadId_t LedTaskHandle;
+osThreadId_t TimeDetectTaskHandle;
+osThreadId_t KeyScanTaskHandle;
+
+void LedTask(void *argument)
+{
+	while (1)
+	{
+		if (PutState == OUTPUT)
+		{
+			if (!Key_flag)
+			{
+				switch (LedState)
+				{
+				case mode1:
+				{
+					HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+					HAL_GPIO_WritePin(Light_output_GPIO_Port, Light_output_Pin, GPIO_PIN_SET);
+					Delay_break(1000);
+					HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+					HAL_GPIO_WritePin(Light_output_GPIO_Port, Light_output_Pin, GPIO_PIN_RESET);
+					Delay_break(1000);
+					break;
+				}
+				case mode2:
+				{
+					HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+					HAL_GPIO_WritePin(Light_output_GPIO_Port, Light_output_Pin, GPIO_PIN_SET);
+					Delay_break(2000);
+					HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+					HAL_GPIO_WritePin(Light_output_GPIO_Port, Light_output_Pin, GPIO_PIN_RESET);
+					Delay_break(2000);
+					break;
+				}
+				case mode3:
+				{
+					HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+					HAL_GPIO_WritePin(Light_output_GPIO_Port, Light_output_Pin, GPIO_PIN_SET);
+					Delay_break(3000);
+					HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+					HAL_GPIO_WritePin(Light_output_GPIO_Port, Light_output_Pin, GPIO_PIN_RESET);
+					Delay_break(3000);
+					break;
+				}
+				}
+			}
+		}
+	}
+	vTaskDelete(NULL);
+}
+
+void TimeDetectTask(void *argument)
+{
+
+	while (1)
+	{
+		switch (PutState)
+		{
+		case EZINPUT:
+		{
+			if (HAL_GPIO_ReadPin(Light_input_GPIO_Port, Light_input_Pin) == Bright)
+			{
+				Bright_time++;
+				Start_ezinput = 1;
+			}
+			if (HAL_GPIO_ReadPin(Light_input_GPIO_Port, Light_input_Pin) == Dark && Start_ezinput)
+				Dark_time++;
+			if (Bright_time > 350 || Dark_time > 350)
+			{
+				printf("Error in the TimeDetect!\r\n");
+				Bright_time = 0;
+				Dark_time = 0;
+			}
+			if (Bright_time / 10 == Dark_time / 10)
+			{
+				switch (Bright_time / 10)
+				{
+				case 10:
+				{
+					printf("Fight!\r\n");
+					Bright_time = 0;
+					Dark_time = 0;
+					Start_ezinput = 0;
+					break;
+				}
+				case 20:
+				{
+					printf("Retreat!\r\n");
+					Bright_time = 0;
+					Dark_time = 0;
+					Start_ezinput = 0;
+					break;
+				}
+				case 30:
+				{
+					printf("Come!\r\n");
+					Bright_time = 0;
+					Dark_time = 0;
+					Start_ezinput = 0;
+					break;
+				}
+				}
+			}
+			break;
+		}
+		case INPUT:
+		{
+			if (HAL_GPIO_ReadPin(Light_input_GPIO_Port, Light_input_Pin) == Bright)
+			{
+				if (!Start_input)
+					Start_input = 1;
+				Bright_time++;
+				Dark_time = 0;
+			}
+			else if (HAL_GPIO_ReadPin(Light_input_GPIO_Port, Light_input_Pin) == Dark && Start_input)
+			{
+				Dark_time++;
+				switch (Dark_time)
+				{
+				case 1:
+				{
+					if (Bright_time == 1)
+					{
+						Morse[Morse_len++] = '.';
+						Bright_time = 0;
+						//						printf(".\r\n");
+						printf("Morse:%s\r\n", Morse);
+					}
+					else if (Bright_time == 3)
+					{
+						Morse[Morse_len++] = '-';
+						Bright_time = 0;
+						//						printf("-\r\n");
+						printf("Morse:%s\r\n", Morse);
+					}
+					break;
+				}
+				case 3:
+				{
+					Transform(Morse, Str, Morse_len, Str_len++);
+					for (int i = 0; i < Str_len; i++)
+					{
+						printf("%c", Str[i]);
+					}
+					printf("\r\n");
+					Morse_len = 0;
+					break;
+				}
+				case 7:
+				{
+					Str[Str_len++] = ' ';
+					Space_num++;
+					break;
+				}
+				default:
+					break;
+				}
+				if (Dark_time > 7)
+				{
+					Str[Morse_len - 1] = 0;
+					//					T = (Str_len - Space_num) % 7;
+					//					Transform_password(Str, Str_len, T - 1);
+					printf("EndStr:");
+					for (int i = 0; i < Str_len - 1; i++)
+					{
+						printf("%c", Str[i]);
+					}
+					printf(".\r\n\r\n");
+					Clear_array(Str, Str_len);
+					Str_len = 0;
+					Space_num = 0;
+					Dark_time = 0;
+					Start_input = 0;
+				}
+			}
+		}
+		default:
+			break;
+		}
+		osDelay(10);
+	}
+}
+
+void KeyScanTask(void *argument)
+{
+	while (1)
+	{
+		osDelay(10);
+		Key_pressscan(KEY0, &Key_flag);
+		if (Key_flag == 1)
+		{
+			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(Light_output_GPIO_Port, Light_output_Pin, GPIO_PIN_RESET);
+			Bright_time = 0;
+			Dark_time = 0;
+			Start_ezinput = 0;
+			Start_input = 0;
+			osDelay(100);
+			if (LedState < mode3)
+			{
+				LedState++;
+				printf("mode%d.\r\n", LedState + 1);
+			}
+			else
+			{
+				LedState = mode1;
+				printf("mode1.\r\n");
+			}
+			Key_flag = 0;
+		}
+		if (Key_flag == 3)
+		{
+			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(Light_output_GPIO_Port, Light_output_Pin, GPIO_PIN_RESET);
+			Bright_time = 0;
+			Dark_time = 0;
+			Start_ezinput = 0;
+			Start_input = 0;
+			if (PutState < INPUT)
+				PutState++;
+			else
+				PutState = OUTPUT;
+			switch (PutState)
+			{
+			case OUTPUT:
+			{
+				printf("OUTPUT.\r\n");
+				break;
+			}
+			case EZINPUT:
+			{
+				printf("EZINPUT.\r\n");
+				break;
+			}
+			case INPUT:
+			{
+				printf("INPUT.\r\n");
+				break;
+			}
+			default:
+				break;
+			}
+			Key_flag = 0;
+		}
+	}
+	vTaskDelete(NULL);
+}
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -66,52 +454,55 @@ void MX_FREERTOS_Init(void);
  */
 int main(void)
 {
-  /* USER CODE BEGIN 1 */
+	/* USER CODE BEGIN 1 */
 
-  /* USER CODE END 1 */
+	/* USER CODE END 1 */
 
-  /* MCU Configuration--------------------------------------------------------*/
+	/* MCU Configuration--------------------------------------------------------*/
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+	HAL_Init();
 
-  /* USER CODE BEGIN Init */
+	/* USER CODE BEGIN Init */
 
-  /* USER CODE END Init */
+	/* USER CODE END Init */
 
-  /* Configure the system clock */
-  SystemClock_Config();
+	/* Configure the system clock */
+	SystemClock_Config();
 
-  /* USER CODE BEGIN SysInit */
+	/* USER CODE BEGIN SysInit */
 
-  /* USER CODE END SysInit */
+	/* USER CODE END SysInit */
 
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_USART2_UART_Init();
-  /* USER CODE BEGIN 2 */
-  Key_Init(KEY0, KEY_GPIO_Port, KEY_Pin, PULL_UP);
-  /* USER CODE END 2 */
+	/* Initialize all configured peripherals */
+	MX_GPIO_Init();
+	MX_USART2_UART_Init();
+	/* USER CODE BEGIN 2 */
+	Key_Init(KEY0, KEY_GPIO_Port, KEY_Pin, PULL_UP);
+	xTaskCreate(LedTask, "LedTask", 128, NULL, osPriorityNormal, LedTaskHandle);
+	xTaskCreate(TimeDetectTask, "TimeDetectTask", 128, NULL, osPriorityNormal, TimeDetectTaskHandle);
+	xTaskCreate(KeyScanTask, "KeyScanTask", 128, NULL, osPriorityNormal, KeyScanTaskHandle);
+	/* creation of KeyQueue */
+	/* USER CODE END 2 */
 
-  /* Init scheduler */
-  osKernelInitialize();
+	/* Init scheduler */
+	osKernelInitialize();
+	/* Call init function for freertos objects (in freertos.c) */
+	MX_FREERTOS_Init();
 
-  /* Call init function for freertos objects (in freertos.c) */
-  MX_FREERTOS_Init();
+	/* Start scheduler */
+	osKernelStart();
 
-  /* Start scheduler */
-  osKernelStart();
+	/* We should never get here as control is now taken by the scheduler */
+	/* Infinite loop */
+	/* USER CODE BEGIN WHILE */
+	while (1)
+	{
+		/* USER CODE END WHILE */
 
-  /* We should never get here as control is now taken by the scheduler */
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
-  }
-  /* USER CODE END 3 */
+		/* USER CODE BEGIN 3 */
+	}
+	/* USER CODE END 3 */
 }
 
 /**
@@ -120,46 +511,50 @@ int main(void)
  */
 void SystemClock_Config(void)
 {
-  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+	RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+	RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
-  /** Configure the main internal regulator output voltage
-   */
-  __HAL_RCC_PWR_CLK_ENABLE();
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+	/** Configure the main internal regulator output voltage
+	 */
+	__HAL_RCC_PWR_CLK_ENABLE();
+	__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
-  /** Initializes the RCC Oscillators according to the specified parameters
-   * in the RCC_OscInitTypeDef structure.
-   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 4;
-  RCC_OscInitStruct.PLL.PLLN = 100;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = 4;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	/** Initializes the RCC Oscillators according to the specified parameters
+	 * in the RCC_OscInitTypeDef structure.
+	 */
+	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+	RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
+	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+	RCC_OscInitStruct.PLL.PLLM = 4;
+	RCC_OscInitStruct.PLL.PLLN = 100;
+	RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+	RCC_OscInitStruct.PLL.PLLQ = 4;
+	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
-  /** Initializes the CPU, AHB and APB buses clocks
-   */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+	/** Initializes the CPU, AHB and APB buses clocks
+	 */
+	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK)
+	{
+		Error_Handler();
+	}
 }
 
 /* USER CODE BEGIN 4 */
-
+int fputc(int ch, FILE *f)
+{
+	HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
+	return ch;
+}
 /* USER CODE END 4 */
 
 /**
@@ -172,16 +567,16 @@ void SystemClock_Config(void)
  */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-  /* USER CODE BEGIN Callback 0 */
+	/* USER CODE BEGIN Callback 0 */
 
-  /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM11)
-  {
-    HAL_IncTick();
-  }
-  /* USER CODE BEGIN Callback 1 */
+	/* USER CODE END Callback 0 */
+	if (htim->Instance == TIM11)
+	{
+		HAL_IncTick();
+	}
+	/* USER CODE BEGIN Callback 1 */
 
-  /* USER CODE END Callback 1 */
+	/* USER CODE END Callback 1 */
 }
 
 /**
@@ -190,13 +585,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
  */
 void Error_Handler(void)
 {
-  /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
-  /* USER CODE END Error_Handler_Debug */
+	/* USER CODE BEGIN Error_Handler_Debug */
+	/* User can add his own implementation to report the HAL error return state */
+	__disable_irq();
+	while (1)
+	{
+	}
+	/* USER CODE END Error_Handler_Debug */
 }
 
 #ifdef USE_FULL_ASSERT
@@ -209,9 +604,9 @@ void Error_Handler(void)
  */
 void assert_failed(uint8_t *file, uint32_t line)
 {
-  /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
-     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-  /* USER CODE END 6 */
+	/* USER CODE BEGIN 6 */
+	/* User can add his own implementation to report the file name and line number,
+	   ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+	/* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
