@@ -46,7 +46,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-
+extern uint8_t Signal_morse[100];
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
@@ -60,7 +60,7 @@ osThreadId_t ReceiveDataTaskHandle;
 const osThreadAttr_t ReceiveDataTask_attributes = {
     .name = "ReceiveDataTask",
     .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityLow,
+    .priority = (osPriority_t)osPriorityAboveNormal,
 };
 /* Definitions for Usart */
 osSemaphoreId_t UsartHandle;
@@ -162,18 +162,17 @@ void StartReceiveDataTask(void *argument)
   /* Infinite loop */
   while (1)
   {
-    osSemaphoreAcquire(UsartHandle, 100); // 等待二值信号量
-    if (RxFlag == 1)                      // 数据接收完成
+    osSemaphoreAcquire(UsartHandle, osWaitForever); // 等待二值信号量
+    if (RxFlag == 1)                                // 数据接收完成
     {
       for (int i = 0; i < RxCounter; i++) // 打印接收数组存储的内容
         printf("%c", RxBuffer[i]);
       printf("\r\n");            // 打印完成换行
       RxFlag = 0;                // 接收标志清零
-      RxCounter = 0;             // 接收计数清零
       memset(RxBuffer, 0, 2048); // 清空接收数组
     }
-    // Str_to_morse();
-    // osSemaphoreRelease(SignalHandle);
+    Str_to_morse(RxBuffer, Signal_morse, RxCounter);
+    osSemaphoreRelease(SignalHandle);
   }
   /* USER CODE END StartReceiveDataTask */
 }

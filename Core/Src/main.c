@@ -107,6 +107,8 @@ uint8_t Space_num = 0;     // 定义字符串中的空格数
 uint8_t T = 0;             // 定义T
 uint8_t Morse[50] = {0};   // 定义数组储存摩尔斯密码
 uint8_t Str[200] = {0};    // 定义数组储存字符串
+uint8_t Signal_morse[100] = {0};
+uint8_t Signal_morse_len = 0;
 uint8_t test = 1;
 
 /* USER CODE END PV */
@@ -223,14 +225,130 @@ void Morse_to_str(uint8_t morse[], uint8_t str[], uint8_t morse_len, uint8_t str
   }
   memset(morse, 0, morse_len);
 }
-
-void Str_to_morse(uint8_t str[], uint8_t morse[], uint8_t str_len, uint8_t morse_len)
+void Assign(uint8_t morse[], const uint8_t str[], uint8_t *signal_morse_len, uint8_t len)
+{
+  for (int i = 0; i < len; i++)
+  {
+    morse[*signal_morse_len++] = str[i];
+  }
+  morse[*signal_morse_len++] = ' ';
+}
+void Str_to_morse(uint8_t str[], uint8_t morse[], uint8_t str_len)
 {
   for (int i = 0; i < str_len; i++)
   {
+    switch (str[i])
+    {
+    case ' ':
+      Assign(morse, "  ", &Signal_morse_len, 2);
+    case 'a':
+      Assign(morse, ".-", &Signal_morse_len, 2);
+      break;
+    case 'b':
+      Assign(morse, "-...", &Signal_morse_len, 4);
+      break;
+    case 'c':
+      Assign(morse, "-.-.", &Signal_morse_len, 4);
+      break;
+    case 'd':
+      Assign(morse, "-..", &Signal_morse_len, 3);
+      break;
+    case 'e':
+      Assign(morse, ".", &Signal_morse_len, 1);
+      break;
+    case 'f':
+      Assign(morse, "..-.", &Signal_morse_len, 4);
+      break;
+    case 'g':
+      Assign(morse, "--.", &Signal_morse_len, 3);
+      break;
+    case 'h':
+      Assign(morse, "....", &Signal_morse_len, 4);
+      break;
+    case 'i':
+      Assign(morse, "..", &Signal_morse_len, 2);
+      break;
+    case 'j':
+      Assign(morse, ".---", &Signal_morse_len, 4);
+      break;
+    case 'k':
+      Assign(morse, "-.-", &Signal_morse_len, 3);
+      break;
+    case 'l':
+      Assign(morse, ".-..", &Signal_morse_len, 4);
+      break;
+    case 'm':
+      Assign(morse, "--", &Signal_morse_len, 2);
+      break;
+    case 'n':
+      Assign(morse, "-.", &Signal_morse_len, 2);
+      break;
+    case 'o':
+      Assign(morse, "---", &Signal_morse_len, 3);
+      break;
+    case 'p':
+      Assign(morse, ".--.", &Signal_morse_len, 4);
+      break;
+    case 'q':
+      Assign(morse, "--.-", &Signal_morse_len, 4);
+      break;
+    case 'r':
+      Assign(morse, ".-.", &Signal_morse_len, 3);
+      break;
+    case 's':
+      Assign(morse, "...", &Signal_morse_len, 3);
+      break;
+    case 't':
+      Assign(morse, "-", &Signal_morse_len, 1);
+      break;
+    case 'u':
+      Assign(morse, "..-", &Signal_morse_len, 3);
+      break;
+    case 'v':
+      Assign(morse, "...-", &Signal_morse_len, 4);
+      break;
+    case 'w':
+      Assign(morse, ".--", &Signal_morse_len, 3);
+      break;
+    case 'x':
+      Assign(morse, "-..-", &Signal_morse_len, 4);
+      break;
+    case 'y':
+      Assign(morse, "-.--", &Signal_morse_len, 4);
+      break;
+    case 'z':
+      Assign(morse, "--..", &Signal_morse_len, 4);
+      break;
+    }
   }
+  Assign(morse, " ", &Signal_morse_len, 1);
 }
 
+void Morse_to_signal(uint8_t morse[], uint8_t morse_len)
+{
+  for (int i = 0; i < morse_len; i++)
+  {
+    switch (morse[i])
+    {
+    case ' ':
+      HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+      osDelay(30);
+      break;
+    case '.':
+      HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+      osDelay(10);
+      HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+      osDelay(10);
+      break;
+    case '-':
+      HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+      osDelay(30);
+      HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+      osDelay(10);
+      break;
+    }
+  }
+}
 void SignalTask(void *argument)
 {
   while (1)
@@ -277,7 +395,10 @@ void SignalTask(void *argument)
     else if (PutState == INPUT)
     {
       osSemaphoreAcquire(SignalHandle, osWaitForever);
-      // Morse_to_signal();
+      Morse_to_signal(Signal_morse, Signal_morse_len);
+      memset(Signal_morse, 0, Signal_morse_len);
+      Signal_morse_len = 0;
+      RxCounter = 0;
     }
   }
   vTaskDelete(NULL);
