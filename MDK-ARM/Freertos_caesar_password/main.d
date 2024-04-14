@@ -31,7 +31,6 @@ freertos_caesar_password\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_h
 freertos_caesar_password\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h
 freertos_caesar_password\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h
 freertos_caesar_password\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h
-freertos_caesar_password\main.o: ./Users/KEY.h
 freertos_caesar_password\main.o: D:\keil\ARM\ARMCC\Bin\..\include\stdio.h
 freertos_caesar_password\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os.h
 freertos_caesar_password\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
@@ -44,5 +43,7 @@ freertos_caesar_password\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/incl
 freertos_caesar_password\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h
 freertos_caesar_password\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/list.h
 freertos_caesar_password\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h
+freertos_caesar_password\main.o: ../Core/Inc/tim.h
 freertos_caesar_password\main.o: ../Core/Inc/usart.h
 freertos_caesar_password\main.o: ../Core/Inc/gpio.h
+freertos_caesar_password\main.o: ./Users/KEY.h

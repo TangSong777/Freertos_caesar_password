@@ -31,5 +31,4 @@ freertos_caesar_password\stm32f4xx_hal_msp.o: ../Drivers/STM32F4xx_HAL_Driver/In
 freertos_caesar_password\stm32f4xx_hal_msp.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h
 freertos_caesar_password\stm32f4xx_hal_msp.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h
 freertos_caesar_password\stm32f4xx_hal_msp.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h
-freertos_caesar_password\stm32f4xx_hal_msp.o: ./Users/KEY.h
 freertos_caesar_password\stm32f4xx_hal_msp.o: D:\keil\ARM\ARMCC\Bin\..\include\stdio.h
