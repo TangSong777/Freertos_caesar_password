@@ -162,18 +162,18 @@ void StartReceiveDataTask(void *argument)
   /* Infinite loop */
   while (1)
   {
-    osSemaphoreAcquire(UsartHandle, osWaitForever); // �ȴ���ֵ�ź���
-    if (RxFlag == 1)                                // ���ݽ������
+    osSemaphoreAcquire(UsartHandle, 100); // 等待二值信号量
+    if (RxFlag == 1)                      // 数据接收完成
     {
-      for (int i = 0; i < RxCounter; i++) // ��ӡ��������洢������
+      for (int i = 0; i < RxCounter; i++) // 打印接收数组存储的内容
         printf("%c", RxBuffer[i]);
-      printf("\r\n"); // ��ӡ��ɻ���
-      RxFlag = 0;     // ���ձ�־����
-      RxCounter = 0;  // ���ռ�������
-      memset(RxBuffer, 0, 2048);
-      // Str_to_morse();
-      // osSemaphoreRelease(SignalHandle);
+      printf("\r\n");            // 打印完成换行
+      RxFlag = 0;                // 接收标志清零
+      RxCounter = 0;             // 接收计数清零
+      memset(RxBuffer, 0, 2048); // 清空接收数组
     }
+    // Str_to_morse();
+    // osSemaphoreRelease(SignalHandle);
   }
   /* USER CODE END StartReceiveDataTask */
 }

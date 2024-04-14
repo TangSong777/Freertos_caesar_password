@@ -35,7 +35,7 @@ typedef enum
   OUTPUT = 0,
   EZINPUT = 1,
   INPUT = 2
-} PUT_STATE; // ??????(????????��?)
+} PUT_STATE; // 长按按键切换状态
 
 typedef enum
 {
@@ -85,28 +85,28 @@ const osThreadAttr_t KeyScanTask_attributes = {
 };
 
 /********************************************************************************/
-uint8_t RxBuffer[2048] = {0}; // �������ݴ洢BUFF		����2048
-uint8_t RxFlag = 0;           // ���ڽ�����ɱ�־��
-uint16_t RxCounter = 0;       // ���ڳ��ȼ���
-uint8_t RxTemp[1] = {0};      // �������ݽ����ݴ�BUFF	����1
+uint8_t RxBuffer[2048] = {0}; // 串口数据存储BUFF		长度2048
+uint8_t RxFlag = 0;           // 串口接收完成标志符
+uint16_t RxCounter = 0;       // 串口长度计数
+uint8_t RxTemp[1] = {0};      // 串口数据接收暂存BUFF	长度1
 
-extern osSemaphoreId UsartHandle; // ����ϵͳ����Ļ�����
+extern osSemaphoreId UsartHandle; // 操作系统定义的互斥量
 /********************************************************************************/
 extern osSemaphoreId SignalHandle;
-PUT_STATE PutState = OUTPUT; // Ĭ��Ϊ����ź�ģʽ
+PUT_STATE PutState = OUTPUT; // 默认为输出信号模式
 LED_STATE LedState = mode1;
-uint8_t Key_flag = 0;      // ������־����
-uint32_t Bright_time = 0;  // ��������ĵ�λʱ��
-uint32_t Dark_time = 0;    // ����Ϩ��ĵ�λʱ��
-uint8_t Start_ezinput = 0; // ���忪ʼ���ձ�־
-uint8_t Start_input = 0;   // ���忪ʼ���ձ�־
-uint8_t Start_flash = 0;   // ���忪ʼת����־
-uint8_t Morse_len = 0;     // ����Ħ��˹���볤��
-uint8_t Str_len = 0;       // �����ַ�������
-uint8_t Space_num = 0;     // �����ַ����еĿո���
-uint8_t T = 0;             // ����T
-uint8_t Morse[50] = {0};   // �������鴢��Ħ��˹����
-uint8_t Str[200] = {0};    // �������鴢���ַ���
+uint8_t Key_flag = 0;      // 按键标志定义
+uint32_t Bright_time = 0;  // 代表亮起的单位时间
+uint32_t Dark_time = 0;    // 代表熄灭的单位时间
+uint8_t Start_ezinput = 0; // 定义开始接收标志
+uint8_t Start_input = 0;   // 定义开始接收标志
+uint8_t Start_flash = 0;   // 定义开始转换标志
+uint8_t Morse_len = 0;     // 定义摩尔斯密码长度
+uint8_t Str_len = 0;       // 定义字符串长度
+uint8_t Space_num = 0;     // 定义字符串中的空格数
+uint8_t T = 0;             // 定义T
+uint8_t Morse[50] = {0};   // 定义数组储存摩尔斯密码
+uint8_t Str[200] = {0};    // 定义数组储存字符串
 uint8_t test = 1;
 
 /* USER CODE END PV */
@@ -276,7 +276,7 @@ void SignalTask(void *argument)
     }
     else if (PutState == INPUT)
     {
-      osSemaphoreAcquire(SignalHandle, osWaitForever); // �ȴ���ֵ�ź���
+      osSemaphoreAcquire(SignalHandle, osWaitForever);
       // Morse_to_signal();
     }
   }
@@ -594,19 +594,19 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) // ����2������ɻص�����
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) // 锟斤拷锟斤拷2锟斤拷锟斤拷锟斤拷苫氐锟斤拷锟斤拷锟�?
 {
   if (huart->Instance == USART2)
   {
-    __HAL_TIM_SET_COUNTER(&htim9, 0); // �����ʱ��9����ֵ
-    if (RxCounter == 0)               // ��������ַ���ÿ֡���ݿ�ͷ��������ʱ��
+    __HAL_TIM_SET_COUNTER(&htim9, 0); // 锟斤拷锟斤拷锟绞憋拷锟�?9锟斤拷锟斤拷值
+    if (RxCounter == 0)               // 锟斤拷锟斤拷锟斤拷锟斤拷址锟斤拷锟矫恐★拷锟斤拷菘锟酵凤拷锟斤拷锟斤拷锟斤拷锟绞憋拷锟�?
     {
-      __HAL_TIM_CLEAR_FLAG(&htim9, TIM_FLAG_UPDATE); // ����жϱ�־λ
-      HAL_TIM_Base_Start_IT(&htim9);                 // ����������ʱ��
+      __HAL_TIM_CLEAR_FLAG(&htim9, TIM_FLAG_UPDATE); // 锟斤拷锟斤拷卸媳锟街撅拷?
+      HAL_TIM_Base_Start_IT(&htim9);                 // 锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷时锟斤拷
     }
-    RxBuffer[RxCounter] = RxTemp[0];                    // �������ݷ����������
-    RxCounter++;                                        // ��������1
-    HAL_UART_Receive_IT(&huart2, (uint8_t *)RxTemp, 1); // ����ʹ���ж�
+    RxBuffer[RxCounter] = RxTemp[0];                    // 锟斤拷锟斤拷锟斤拷锟捷凤拷锟斤拷锟斤拷锟斤拷锟斤拷锟�?
+    RxCounter++;                                        // 锟斤拷锟斤拷锟斤拷锟斤拷1
+    HAL_UART_Receive_IT(&huart2, (uint8_t *)RxTemp, 1); // 锟斤拷锟斤拷使锟斤拷锟叫讹拷
   }
 }
 /* USER CODE END 4 */
@@ -631,9 +631,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* USER CODE BEGIN Callback 1 */
   if (htim->Instance == TIM9)
   {
-    RxFlag = 1;                      // ���ձ�־λ��1
-    HAL_TIM_Base_Stop_IT(&htim9);    // �رն�ʱ��
-    osSemaphoreRelease(UsartHandle); // �ͷŶ�ֵ�ź��������봮������
+    RxFlag = 1;                      // 锟斤拷锟秸憋拷志位锟斤拷1
+    HAL_TIM_Base_Stop_IT(&htim9);    // 锟截闭讹拷时锟斤拷
+    osSemaphoreRelease(UsartHandle); // 锟酵放讹拷值锟脚猴拷锟斤拷锟斤拷锟斤拷锟诫串锟斤拷锟斤拷锟斤拷
   }
   /* USER CODE END Callback 1 */
 }
