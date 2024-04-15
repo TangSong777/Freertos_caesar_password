@@ -231,7 +231,7 @@ void Assign(uint8_t morse[], const uint8_t str[], uint8_t *signal_morse_len, uin
   {
     morse[*signal_morse_len++] = str[i];
   }
-  morse[*signal_morse_len++] = ' ';
+  morse[*signal_morse_len++] = 'l';
 }
 void Str_to_morse(uint8_t str[], uint8_t morse[], uint8_t str_len)
 {
@@ -240,7 +240,8 @@ void Str_to_morse(uint8_t str[], uint8_t morse[], uint8_t str_len)
     switch (str[i])
     {
     case ' ':
-      Assign(morse, "  ", &Signal_morse_len, 2);
+      morse[Signal_morse_len] = 'w';
+      break;
     case 'a':
       Assign(morse, ".-", &Signal_morse_len, 2);
       break;
@@ -321,7 +322,6 @@ void Str_to_morse(uint8_t str[], uint8_t morse[], uint8_t str_len)
       break;
     }
   }
-  Assign(morse, " ", &Signal_morse_len, 1);
 }
 
 void Morse_to_signal(uint8_t morse[], uint8_t morse_len)
@@ -330,10 +330,13 @@ void Morse_to_signal(uint8_t morse[], uint8_t morse_len)
   {
     switch (morse[i])
     {
-    case ' ':
+    case 'l':
       HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
-      osDelay(30);
+      osDelay(20);
       break;
+    case 'w':
+      HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+      osDelay(40);
     case '.':
       HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
       osDelay(10);
