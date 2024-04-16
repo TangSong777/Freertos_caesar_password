@@ -46,4 +46,3 @@ freertos_caesar_password\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSI
 freertos_caesar_password\main.o: ../Core/Inc/tim.h
 freertos_caesar_password\main.o: ../Core/Inc/usart.h
 freertos_caesar_password\main.o: ../Core/Inc/gpio.h
-freertos_caesar_password\main.o: ./Users/KEY.h

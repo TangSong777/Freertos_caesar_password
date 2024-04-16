@@ -44,3 +44,4 @@ freertos_caesar_password\freertos.o: D:\keil\ARM\ARMCC\Bin\..\include\stdio.h
 freertos_caesar_password\freertos.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os.h
 freertos_caesar_password\freertos.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h
 freertos_caesar_password\freertos.o: ../Core/Inc/usart.h
+freertos_caesar_password\freertos.o: ./Users/KEY.h
