@@ -60,74 +60,73 @@ typedef enum
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-PUT_STATE PutState = OUTPUT; // 默认为输出信号模�?
+PUT_STATE PutState = OUTPUT; // 默认为输出信号模�?
 LED_STATE LedState = mode1;
 uint8_t Key_flag = 0;      // 按键标志定义
-uint32_t Bright_time = 0;  // 代表亮起的单位时�?
-uint32_t Dark_time = 0;    // 代表熄灭的单位时�?
+uint32_t Bright_time = 0;  // 代表亮起的单位时�?
+uint32_t Dark_time = 0;    // 代表熄灭的单位时�?
 uint8_t Start_ezinput = 0; // 定义弿始接收标忿
 uint8_t Start_input = 0;   // 定义弿始接收标忿
 uint8_t Start_flash = 0;   // 定义弿始转换标忿
-uint8_t Morse_len = 0;     // 定义摩尔斯密码长�?
-uint8_t Str_len = 0;       // 定义字符串长�?
+uint8_t Morse_len = 0;     // 定义摩尔斯密码长�?
+uint8_t Str_len = 0;       // 定义字符串长�?
 uint8_t Space_num = 0;     // 定义字符串中的空格数
 uint8_t T = 0;             // 定义T
-uint8_t Morse[50] = {0};   // 定义数组储存摩尔斯密�?
-uint8_t Str[200] = {0};    // 定义数组储存字符�?
+uint8_t Morse[100] = {0};  // 定义数组储存摩尔斯密�?
+uint8_t Str[200] = {0};    // 定义数组储存字符�?
 uint8_t Signal_morse[100] = {0};
 uint8_t Signal_morse_len = 0;
 uint8_t test = 1;
+uint8_t Start_detect = 0;
+uint8_t Start_signal = 0;
 /* USER CODE END Variables */
 /* Definitions for DefaultTask */
 osThreadId_t DefaultTaskHandle;
 const osThreadAttr_t DefaultTask_attributes = {
-  .name = "DefaultTask",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+    .name = "DefaultTask",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t)osPriorityNormal,
 };
 /* Definitions for ReceiveDataTask */
 osThreadId_t ReceiveDataTaskHandle;
 const osThreadAttr_t ReceiveDataTask_attributes = {
-  .name = "ReceiveDataTask",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityAboveNormal,
+    .name = "ReceiveDataTask",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t)osPriorityAboveNormal,
 };
 /* Definitions for TimeDetectTask */
 osThreadId_t TimeDetectTaskHandle;
 const osThreadAttr_t TimeDetectTask_attributes = {
-  .name = "TimeDetectTask",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+    .name = "TimeDetectTask",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t)osPriorityNormal,
 };
 /* Definitions for SignalTask */
 osThreadId_t SignalTaskHandle;
 const osThreadAttr_t SignalTask_attributes = {
-  .name = "SignalTask",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+    .name = "SignalTask",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t)osPriorityNormal,
 };
 /* Definitions for KeyScanTask */
 osThreadId_t KeyScanTaskHandle;
 const osThreadAttr_t KeyScanTask_attributes = {
-  .name = "KeyScanTask",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+    .name = "KeyScanTask",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t)osPriorityNormal,
 };
 /* Definitions for Usart */
 osSemaphoreId_t UsartHandle;
 const osSemaphoreAttr_t Usart_attributes = {
-  .name = "Usart"
-};
+    .name = "Usart"};
 /* Definitions for Signal */
 osSemaphoreId_t SignalHandle;
 const osSemaphoreAttr_t Signal_attributes = {
-  .name = "Signal"
-};
+    .name = "Signal"};
 /* Definitions for Detect */
 osSemaphoreId_t DetectHandle;
 const osSemaphoreAttr_t Detect_attributes = {
-  .name = "Detect"
-};
+    .name = "Detect"};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -237,130 +236,144 @@ void Morse_to_str(uint8_t morse[], uint8_t str[], uint8_t morse_len, uint8_t str
     break;
   }
   }
-  memset(morse, 0, morse_len);
 }
-void Assign(uint8_t morse[], const uint8_t str[], uint8_t *signal_morse_len, uint8_t len)
+void Assign(uint8_t morse[], const uint8_t str[], uint8_t len)
 {
   for (int i = 0; i < len; i++)
   {
-    morse[*signal_morse_len++] = str[i];
+    morse[Signal_morse_len++] = str[i];
   }
-  morse[*signal_morse_len++] = 'l';
+  morse[Signal_morse_len++] = 'l';
 }
 void Str_to_morse(uint8_t str[], uint8_t morse[], uint8_t str_len)
 {
   for (int i = 0; i < str_len; i++)
   {
-    switch (str[i])
+    if (str[i] != ' ')
     {
-    case ' ':
-      morse[Signal_morse_len] = 'w';
-      break;
-    case 'a':
-      Assign(morse, ".-", &Signal_morse_len, 2);
-      break;
-    case 'b':
-      Assign(morse, "-...", &Signal_morse_len, 4);
-      break;
-    case 'c':
-      Assign(morse, "-.-.", &Signal_morse_len, 4);
-      break;
-    case 'd':
-      Assign(morse, "-..", &Signal_morse_len, 3);
-      break;
-    case 'e':
-      Assign(morse, ".", &Signal_morse_len, 1);
-      break;
-    case 'f':
-      Assign(morse, "..-.", &Signal_morse_len, 4);
-      break;
-    case 'g':
-      Assign(morse, "--.", &Signal_morse_len, 3);
-      break;
-    case 'h':
-      Assign(morse, "....", &Signal_morse_len, 4);
-      break;
-    case 'i':
-      Assign(morse, "..", &Signal_morse_len, 2);
-      break;
-    case 'j':
-      Assign(morse, ".---", &Signal_morse_len, 4);
-      break;
-    case 'k':
-      Assign(morse, "-.-", &Signal_morse_len, 3);
-      break;
-    case 'l':
-      Assign(morse, ".-..", &Signal_morse_len, 4);
-      break;
-    case 'm':
-      Assign(morse, "--", &Signal_morse_len, 2);
-      break;
-    case 'n':
-      Assign(morse, "-.", &Signal_morse_len, 2);
-      break;
-    case 'o':
-      Assign(morse, "---", &Signal_morse_len, 3);
-      break;
-    case 'p':
-      Assign(morse, ".--.", &Signal_morse_len, 4);
-      break;
-    case 'q':
-      Assign(morse, "--.-", &Signal_morse_len, 4);
-      break;
-    case 'r':
-      Assign(morse, ".-.", &Signal_morse_len, 3);
-      break;
-    case 's':
-      Assign(morse, "...", &Signal_morse_len, 3);
-      break;
-    case 't':
-      Assign(morse, "-", &Signal_morse_len, 1);
-      break;
-    case 'u':
-      Assign(morse, "..-", &Signal_morse_len, 3);
-      break;
-    case 'v':
-      Assign(morse, "...-", &Signal_morse_len, 4);
-      break;
-    case 'w':
-      Assign(morse, ".--", &Signal_morse_len, 3);
-      break;
-    case 'x':
-      Assign(morse, "-..-", &Signal_morse_len, 4);
-      break;
-    case 'y':
-      Assign(morse, "-.--", &Signal_morse_len, 4);
-      break;
-    case 'z':
-      Assign(morse, "--..", &Signal_morse_len, 4);
-      break;
+      switch (str[i])
+      {
+      case 'a':
+        Assign(morse, ".-", 2);
+        break;
+      case 'b':
+        Assign(morse, "-...", 4);
+        break;
+      case 'c':
+        Assign(morse, "-.-.", 4);
+        break;
+      case 'd':
+        Assign(morse, "-..", 3);
+        break;
+      case 'e':
+        Assign(morse, ".", 1);
+        break;
+      case 'f':
+        Assign(morse, "..-.", 4);
+        break;
+      case 'g':
+        Assign(morse, "--.", 3);
+        break;
+      case 'h':
+        Assign(morse, "....", 4);
+        break;
+      case 'i':
+        Assign(morse, "..", 2);
+        break;
+      case 'j':
+        Assign(morse, ".---", 4);
+        break;
+      case 'k':
+        Assign(morse, "-.-", 3);
+        break;
+      case 'l':
+        Assign(morse, ".-..", 4);
+        break;
+      case 'm':
+        Assign(morse, "--", 2);
+        break;
+      case 'n':
+        Assign(morse, "-.", 2);
+        break;
+      case 'o':
+        Assign(morse, "---", 3);
+        break;
+      case 'p':
+        Assign(morse, ".--.", 4);
+        break;
+      case 'q':
+        Assign(morse, "--.-", 4);
+        break;
+      case 'r':
+        Assign(morse, ".-.", 3);
+        break;
+      case 's':
+        Assign(morse, "...", 3);
+        break;
+      case 't':
+        Assign(morse, "-", 1);
+        break;
+      case 'u':
+        Assign(morse, "..-", 3);
+        break;
+      case 'v':
+        Assign(morse, "...-", 4);
+        break;
+      case 'w':
+        Assign(morse, ".--", 3);
+        break;
+      case 'x':
+        Assign(morse, "-..-", 4);
+        break;
+      case 'y':
+        Assign(morse, "-.--", 4);
+        break;
+      case 'z':
+        Assign(morse, "--..", 4);
+        break;
+      }
     }
+    else
+      morse[Signal_morse_len - 1] = 'w';
   }
+  morse[Signal_morse_len - 1] = 's';
 }
 
-void Morse_to_signal(uint8_t morse[], uint8_t morse_len)
+void Morse_to_signal(uint8_t signal_morse[], uint8_t signal_morse_len)
 {
-  for (int i = 0; i < morse_len; i++)
+  for (int i = 0; i < signal_morse_len; i++)
   {
-    switch (morse[i])
+    switch (signal_morse[i])
     {
     case 'l':
       HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(Light_output_GPIO_Port, Light_output_Pin, GPIO_PIN_RESET);
       osDelay(20);
       break;
     case 'w':
       HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
-      osDelay(40);
+      HAL_GPIO_WritePin(Light_output_GPIO_Port, Light_output_Pin, GPIO_PIN_RESET);
+      osDelay(60);
+      break;
+    case 's':
+      HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(Light_output_GPIO_Port, Light_output_Pin, GPIO_PIN_RESET);
+      osDelay(70);
+      break;
     case '.':
       HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+      HAL_GPIO_WritePin(Light_output_GPIO_Port, Light_output_Pin, GPIO_PIN_SET);
       osDelay(10);
       HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(Light_output_GPIO_Port, Light_output_Pin, GPIO_PIN_RESET);
       osDelay(10);
       break;
     case '-':
       HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+      HAL_GPIO_WritePin(Light_output_GPIO_Port, Light_output_Pin, GPIO_PIN_SET);
       osDelay(30);
       HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(Light_output_GPIO_Port, Light_output_Pin, GPIO_PIN_RESET);
       osDelay(10);
       break;
     }
@@ -377,11 +390,12 @@ void StartKeyScanTask(void *argument);
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /**
-  * @brief  FreeRTOS initialization
-  * @param  None
-  * @retval None
-  */
-void MX_FREERTOS_Init(void) {
+ * @brief  FreeRTOS initialization
+ * @param  None
+ * @retval None
+ */
+void MX_FREERTOS_Init(void)
+{
   /* USER CODE BEGIN Init */
   /* USER CODE END Init */
 
@@ -434,7 +448,6 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN RTOS_EVENTS */
   /* add events, ... */
   /* USER CODE END RTOS_EVENTS */
-
 }
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -470,27 +483,34 @@ void StartReceiveDataTask(void *argument)
   /* Infinite loop */
   while (1)
   {
-    osSemaphoreAcquire(UsartHandle, osWaitForever); // 等待二�?�信号量
+    osSemaphoreAcquire(UsartHandle, osWaitForever); // 等待二�?�信号量
     if (RxFlag == 1)                                // 数据接收完成
     {
-      for (int i = 0; i < RxCounter; i++) // 打印接收数组存储的内�?
+      for (int i = 0; i < RxCounter; i++) // 打印接收数组存储的内�?
         printf("%c", RxBuffer[i]);
-      printf("\r\n");            // 打印完成换行
-      RxFlag = 0;                // 接收标志清零
+      printf("\r\n"); // 打印完成换行
+      RxFlag = 0;     // 接收标志清零
+      Str_to_morse(RxBuffer, Signal_morse, RxCounter);
       memset(RxBuffer, 0, 2048); // 清空接收数组
+      RxCounter = 0;
     }
-    Str_to_morse(RxBuffer, Signal_morse, RxCounter);
-    osSemaphoreRelease(SignalHandle);
+
+    printf("Morse:");
+    for (int i = 0; i < Signal_morse_len; i++) // 打印接收数组存储的内�?
+      printf("%c", Signal_morse[i]);
+    printf("\r\n");
+    Start_detect = 1;
+    Start_signal = 1;
   }
   /* USER CODE END StartReceiveDataTask */
 }
 
 /* USER CODE BEGIN Header_StartTimeDetectTask */
 /**
-* @brief Function implementing the TimeDetectTask thread.
-* @param argument: Not used
-* @retval None
-*/
+ * @brief Function implementing the TimeDetectTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_StartTimeDetectTask */
 void StartTimeDetectTask(void *argument)
 {
@@ -549,72 +569,72 @@ void StartTimeDetectTask(void *argument)
     }
     case INPUT:
     {
-      if (HAL_GPIO_ReadPin(Light_input_GPIO_Port, Light_input_Pin) == Bright)
+      if (Start_detect)
       {
-        if (!Start_input)
-          Start_input = 1;
-        Bright_time++;
-        Dark_time = 0;
-      }
-      else if (HAL_GPIO_ReadPin(Light_input_GPIO_Port, Light_input_Pin) == Dark && Start_input)
-      {
-        Dark_time++;
-        switch (Dark_time)
+        if (HAL_GPIO_ReadPin(Light_input_GPIO_Port, Light_input_Pin) == Bright)
         {
-        case 1:
-        {
-          if (Bright_time == 1)
+          if (!Start_input)
           {
-            Morse[Morse_len++] = '.';
-            Bright_time = 0;
-            //						printf(".\r\n");
-            printf("Morse:%s\r\n", Morse);
+            Start_input = 1;
+            printf("Detect!\r\n");
           }
-          else if (Bright_time == 3)
-          {
-            Morse[Morse_len++] = '-';
-            Bright_time = 0;
-            //						printf("-\r\n");
-            printf("Morse:%s\r\n", Morse);
-          }
-          break;
-        }
-        case 3:
-        {
-          Morse_to_str(Morse, Str, Morse_len, Str_len++);
-          for (int i = 0; i < Str_len; i++)
-          {
-            printf("%c", Str[i]);
-          }
-          printf("\r\n");
-          Morse_len = 0;
-          break;
-        }
-        case 7:
-        {
-          Str[Str_len++] = ' ';
-          Space_num++;
-          break;
-        }
-        default:
-          break;
-        }
-        if (Dark_time > 7)
-        {
-          Str[Morse_len - 1] = 0;
-          //					T = (Str_len - Space_num) % 7;
-          //					Transform_password(Str, Str_len, T - 1);
-          printf("EndStr:");
-          for (int i = 0; i < Str_len - 1; i++)
-          {
-            printf("%c", Str[i]);
-          }
-          printf(".\r\n\r\n");
-          memset(Str, 0, Str_len);
-          Str_len = 0;
-          Space_num = 0;
+          Bright_time++;
           Dark_time = 0;
-          Start_input = 0;
+        }
+        else if (HAL_GPIO_ReadPin(Light_input_GPIO_Port, Light_input_Pin) == Dark && Start_input)
+        {
+          Dark_time++;
+          switch (Dark_time)
+          {
+          case 1:
+          {
+            if (Bright_time == 1)
+              Morse[Morse_len++] = '.';
+            else if (Bright_time == 3)
+              Morse[Morse_len++] = '-';
+            Bright_time = 0;
+            break;
+          }
+          case 3:
+          {
+            printf("Morse:");
+            for (int i = 0; i < Morse_len; i++)
+              printf("%c", Morse[i]);
+            printf("\r\n");
+            Morse_to_str(Morse, Str, Morse_len, Str_len++);
+            memset(Morse, 0, 50);
+            Morse_len = 0;
+            for (int i = 0; i < Str_len; i++)
+              printf("%c", Str[i]);
+            printf("\r\n");
+            break;
+          }
+          case 7:
+          {
+            Str[Str_len++] = ' ';
+            Space_num++;
+            break;
+          }
+          default:
+            break;
+          }
+          if (Dark_time > 7)
+          {
+            Str[--Str_len] = 0;
+            Space_num--;
+            //            T = (Str_len - Space_num) % 7;
+            //            Transform_password(Str, Str_len, T - 1);
+            printf("EndStr:");
+            for (int i = 0; i < Str_len; i++)
+              printf("%c", Str[i]);
+            printf(".\r\n\r\n");
+            memset(Str, 0, Str_len);
+            Str_len = 0;
+            Space_num = 0;
+            Dark_time = 0;
+            Start_input = 0;
+            Start_detect = 0;
+          }
         }
       }
     }
@@ -628,10 +648,10 @@ void StartTimeDetectTask(void *argument)
 
 /* USER CODE BEGIN Header_StartSignalTask */
 /**
-* @brief Function implementing the SignalTask thread.
-* @param argument: Not used
-* @retval None
-*/
+ * @brief Function implementing the SignalTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_StartSignalTask */
 void StartSignalTask(void *argument)
 {
@@ -639,7 +659,7 @@ void StartSignalTask(void *argument)
   /* Infinite loop */
   while (1)
   {
-    if (PutState == OUTPUT)
+    if (PutState == OUTPUT || PutState == EZINPUT)
     {
       if (!Key_flag)
       {
@@ -680,11 +700,14 @@ void StartSignalTask(void *argument)
     }
     else if (PutState == INPUT)
     {
-      osSemaphoreAcquire(SignalHandle, osWaitForever);
-      Morse_to_signal(Signal_morse, Signal_morse_len);
-      memset(Signal_morse, 0, Signal_morse_len);
-      Signal_morse_len = 0;
-      RxCounter = 0;
+      if (Start_signal)
+      {
+        printf("Signal!\r\n");
+        Morse_to_signal(Signal_morse, Signal_morse_len);
+        memset(Signal_morse, 0, Signal_morse_len);
+        Signal_morse_len = 0;
+        Start_signal = 0;
+      }
     }
   }
   vTaskDelete(NULL);
@@ -693,10 +716,10 @@ void StartSignalTask(void *argument)
 
 /* USER CODE BEGIN Header_StartKeyScanTask */
 /**
-* @brief Function implementing the KeyScanTask thread.
-* @param argument: Not used
-* @retval None
-*/
+ * @brief Function implementing the KeyScanTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_StartKeyScanTask */
 void StartKeyScanTask(void *argument)
 {
@@ -770,4 +793,3 @@ void StartKeyScanTask(void *argument)
 /* USER CODE BEGIN Application */
 
 /* USER CODE END Application */
-
