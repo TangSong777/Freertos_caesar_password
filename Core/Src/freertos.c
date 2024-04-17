@@ -60,25 +60,26 @@ typedef enum
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-PUT_STATE PutState = OUTPUT; // 默认为输出信号模�?
+PUT_STATE PutState = OUTPUT; // 默认为输出信号模�???
 LED_STATE LedState = mode1;
 uint8_t Key_flag = 0;      // 按键标志定义
-uint32_t Bright_time = 0;  // 代表亮起的单位时�?
-uint32_t Dark_time = 0;    // 代表熄灭的单位时�?
+uint32_t Bright_time = 0;  // 代表亮起的单位时�???
+uint32_t Dark_time = 0;    // 代表熄灭的单位时�???
 uint8_t Start_ezinput = 0; // 定义弿始接收标忿
 uint8_t Start_input = 0;   // 定义弿始接收标忿
 uint8_t Start_flash = 0;   // 定义弿始转换标忿
-uint8_t Morse_len = 0;     // 定义摩尔斯密码长�?
-uint8_t Str_len = 0;       // 定义字符串长�?
+uint8_t Morse_len = 0;     // 定义摩尔斯密码长�???
+uint8_t Str_len = 0;       // 定义字符串长�???
 uint8_t Space_num = 0;     // 定义字符串中的空格数
 uint8_t T = 0;             // 定义T
-uint8_t Morse[100] = {0};  // 定义数组储存摩尔斯密�?
-uint8_t Str[200] = {0};    // 定义数组储存字符�?
+uint8_t Morse[100] = {0};  // 定义数组储存摩尔斯密�???
+uint8_t Str[200] = {0};    // 定义数组储存字符�???
 uint8_t Signal_morse[100] = {0};
 uint8_t Signal_morse_len = 0;
 uint8_t test = 1;
 uint8_t Start_detect = 0;
 uint8_t Start_signal = 0;
+uint8_t Process = 0;
 /* USER CODE END Variables */
 /* Definitions for DefaultTask */
 osThreadId_t DefaultTaskHandle;
@@ -105,7 +106,7 @@ const osThreadAttr_t TimeDetectTask_attributes = {
 osThreadId_t SignalTaskHandle;
 const osThreadAttr_t SignalTask_attributes = {
     .name = "SignalTask",
-    .stack_size = 128 * 4,
+    .stack_size = 256 * 4,
     .priority = (osPriority_t)osPriorityNormal,
 };
 /* Definitions for KeyScanTask */
@@ -115,6 +116,10 @@ const osThreadAttr_t KeyScanTask_attributes = {
     .stack_size = 128 * 4,
     .priority = (osPriority_t)osPriorityNormal,
 };
+/* Definitions for DetectTimer */
+osTimerId_t DetectTimerHandle;
+const osTimerAttr_t DetectTimer_attributes = {
+    .name = "DetectTimer"};
 /* Definitions for Usart */
 osSemaphoreId_t UsartHandle;
 const osSemaphoreAttr_t Usart_attributes = {
@@ -386,6 +391,7 @@ void StartReceiveDataTask(void *argument);
 void StartTimeDetectTask(void *argument);
 void StartSignalTask(void *argument);
 void StartKeyScanTask(void *argument);
+void Callback01(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -416,6 +422,10 @@ void MX_FREERTOS_Init(void)
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
+
+  /* Create the timer(s) */
+  /* creation of DetectTimer */
+  DetectTimerHandle = osTimerNew(Callback01, osTimerPeriodic, NULL, &DetectTimer_attributes);
 
   /* USER CODE BEGIN RTOS_TIMERS */
   /* start timers, add new ones, ... */
@@ -462,9 +472,46 @@ void StartDefaultTask(void *argument)
   /* USER CODE BEGIN StartDefaultTask */
   HAL_UART_Receive_IT(&huart2, (uint8_t *)RxTemp, 1);
   Key_Init(KEY0, KEY_GPIO_Port, KEY_Pin, PULL_UP);
+  osTimerStart(DetectTimerHandle, 10); // 10代表回调函数回调周期
   /* Infinite loop */
   for (;;)
   {
+    switch (Process)
+    {
+    case 3:
+      printf("Morse:");
+      for (int i = 0; i < Morse_len; i++)
+        printf("%c", Morse[i]);
+      printf("\r\n");
+      Morse_to_str(Morse, Str, Morse_len, Str_len++);
+      memset(Morse, 0, 50);
+      Morse_len = 0;
+      for (int i = 0; i < Str_len; i++)
+        printf("%c", Str[i]);
+      printf("\r\n");
+      Process = 0;
+      break;
+    case 8:
+      Str[--Str_len] = 0;
+      Space_num--;
+      T = (Str_len - Space_num) % 7;
+      printf("Str_len:%d\r\n", Str_len);
+      printf("Space:%d\r\n", Space_num);
+      printf("T:%d\r\n", T);
+      Transform_password(Str, Str_len, T);
+      printf("EndStr:");
+      for (int i = 0; i < Str_len; i++)
+        printf("%c", Str[i]);
+      printf(".\r\n\r\n");
+      memset(Str, 0, Str_len);
+      Str_len = 0;
+      Space_num = 0;
+      Dark_time = 0;
+      Start_input = 0;
+      Start_detect = 0;
+      Process = 0;
+      break;
+    }
     osDelay(1);
   }
   /* USER CODE END StartDefaultTask */
@@ -486,7 +533,7 @@ void StartReceiveDataTask(void *argument)
     osSemaphoreAcquire(UsartHandle, osWaitForever); // 等待二�?�信号量
     if (RxFlag == 1)                                // 数据接收完成
     {
-      for (int i = 0; i < RxCounter; i++) // 打印接收数组存储的内�?
+      for (int i = 0; i < RxCounter; i++) // 打印接收数组存储的内�???
         printf("%c", RxBuffer[i]);
       printf("\r\n"); // 打印完成换行
       RxFlag = 0;     // 接收标志清零
@@ -494,9 +541,8 @@ void StartReceiveDataTask(void *argument)
       memset(RxBuffer, 0, 2048); // 清空接收数组
       RxCounter = 0;
     }
-
     printf("Morse:");
-    for (int i = 0; i < Signal_morse_len; i++) // 打印接收数组存储的内�?
+    for (int i = 0; i < Signal_morse_len; i++) // 打印接收数组存储的内�???
       printf("%c", Signal_morse[i]);
     printf("\r\n");
     Start_detect = 1;
@@ -518,130 +564,7 @@ void StartTimeDetectTask(void *argument)
   /* Infinite loop */
   while (1)
   {
-    switch (PutState)
-    {
-    case EZINPUT:
-    {
-      if (HAL_GPIO_ReadPin(Light_input_GPIO_Port, Light_input_Pin) == Bright)
-      {
-        Bright_time++;
-        Start_ezinput = 1;
-      }
-      if (HAL_GPIO_ReadPin(Light_input_GPIO_Port, Light_input_Pin) == Dark && Start_ezinput)
-        Dark_time++;
-      if (Bright_time > 350 || Dark_time > 350)
-      {
-        printf("Error in the TimeDetect!\r\n");
-        Bright_time = 0;
-        Dark_time = 0;
-      }
-      if (Bright_time / 10 == Dark_time / 10)
-      {
-        switch (Bright_time / 10)
-        {
-        case 10:
-        {
-          printf("Fight!\r\n");
-          Bright_time = 0;
-          Dark_time = 0;
-          Start_ezinput = 0;
-          break;
-        }
-        case 20:
-        {
-          printf("Retreat!\r\n");
-          Bright_time = 0;
-          Dark_time = 0;
-          Start_ezinput = 0;
-          break;
-        }
-        case 30:
-        {
-          printf("Come!\r\n");
-          Bright_time = 0;
-          Dark_time = 0;
-          Start_ezinput = 0;
-          break;
-        }
-        }
-      }
-      break;
-    }
-    case INPUT:
-    {
-      if (Start_detect)
-      {
-        if (HAL_GPIO_ReadPin(Light_input_GPIO_Port, Light_input_Pin) == Bright)
-        {
-          if (!Start_input)
-          {
-            Start_input = 1;
-            printf("Detect!\r\n");
-          }
-          Bright_time++;
-          Dark_time = 0;
-        }
-        else if (HAL_GPIO_ReadPin(Light_input_GPIO_Port, Light_input_Pin) == Dark && Start_input)
-        {
-          Dark_time++;
-          switch (Dark_time)
-          {
-          case 1:
-          {
-            if (Bright_time == 1)
-              Morse[Morse_len++] = '.';
-            else if (Bright_time == 3)
-              Morse[Morse_len++] = '-';
-            Bright_time = 0;
-            break;
-          }
-          case 3:
-          {
-            printf("Morse:");
-            for (int i = 0; i < Morse_len; i++)
-              printf("%c", Morse[i]);
-            printf("\r\n");
-            Morse_to_str(Morse, Str, Morse_len, Str_len++);
-            memset(Morse, 0, 50);
-            Morse_len = 0;
-            for (int i = 0; i < Str_len; i++)
-              printf("%c", Str[i]);
-            printf("\r\n");
-            break;
-          }
-          case 7:
-          {
-            Str[Str_len++] = ' ';
-            Space_num++;
-            break;
-          }
-          default:
-            break;
-          }
-          if (Dark_time > 7)
-          {
-            Str[--Str_len] = 0;
-            Space_num--;
-            //            T = (Str_len - Space_num) % 7;
-            //            Transform_password(Str, Str_len, T - 1);
-            printf("EndStr:");
-            for (int i = 0; i < Str_len; i++)
-              printf("%c", Str[i]);
-            printf(".\r\n\r\n");
-            memset(Str, 0, Str_len);
-            Str_len = 0;
-            Space_num = 0;
-            Dark_time = 0;
-            Start_input = 0;
-            Start_detect = 0;
-          }
-        }
-      }
-    }
-    default:
-      break;
-    }
-    osDelay(10);
+    osDelay(1);
   }
   /* USER CODE END StartTimeDetectTask */
 }
@@ -703,6 +626,7 @@ void StartSignalTask(void *argument)
       if (Start_signal)
       {
         printf("Signal!\r\n");
+        osDelay(20);
         Morse_to_signal(Signal_morse, Signal_morse_len);
         memset(Signal_morse, 0, Signal_morse_len);
         Signal_morse_len = 0;
@@ -787,6 +711,121 @@ void StartKeyScanTask(void *argument)
   }
   vTaskDelete(NULL);
   /* USER CODE END StartKeyScanTask */
+}
+
+/* Callback01 function */
+void Callback01(void *argument)
+{
+  /* USER CODE BEGIN Callback01 */
+  switch (PutState)
+  {
+  case EZINPUT:
+  {
+    if (HAL_GPIO_ReadPin(Light_input_GPIO_Port, Light_input_Pin) == Bright)
+    {
+      Bright_time++;
+      Start_ezinput = 1;
+    }
+    if (HAL_GPIO_ReadPin(Light_input_GPIO_Port, Light_input_Pin) == Dark && Start_ezinput)
+      Dark_time++;
+    if (Bright_time > 350 || Dark_time > 350)
+    {
+      printf("Error in the TimeDetect!\r\n");
+      HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(Light_output_GPIO_Port, Light_output_Pin, GPIO_PIN_RESET);
+      Bright_time = 0;
+      Dark_time = 0;
+    }
+    if (Bright_time / 10 == Dark_time / 10)
+    {
+      switch (Bright_time / 10)
+      {
+      case 10:
+      {
+        Bright_time = 0;
+        Dark_time = 0;
+        Start_ezinput = 0;
+        HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+        HAL_GPIO_WritePin(Light_output_GPIO_Port, Light_output_Pin, GPIO_PIN_RESET);
+        printf("Fight!\r\n");
+        break;
+      }
+      case 20:
+      {
+        Bright_time = 0;
+        Dark_time = 0;
+        Start_ezinput = 0;
+        printf("Retreat!\r\n");
+        break;
+      }
+      case 30:
+      {
+        Bright_time = 0;
+        Dark_time = 0;
+        Start_ezinput = 0;
+        printf("Come!\r\n");
+        break;
+      }
+      }
+    }
+    break;
+  }
+  case INPUT:
+  {
+    if (Start_detect)
+    {
+      if (HAL_GPIO_ReadPin(Light_input_GPIO_Port, Light_input_Pin) == Bright)
+      {
+        if (!Start_input)
+        {
+          Start_input = 1;
+          printf("Detect!\r\n");
+          //					Morse[0] = '.';
+          //					Morse_len = 1;
+        }
+        Bright_time++;
+        Dark_time = 0;
+      }
+      else if (HAL_GPIO_ReadPin(Light_input_GPIO_Port, Light_input_Pin) == Dark && Start_input)
+      {
+        Dark_time++;
+        switch (Dark_time)
+        {
+        case 1:
+        {
+          if (Bright_time == 1)
+            Morse[Morse_len++] = '.';
+          else if (Bright_time == 3)
+            Morse[Morse_len++] = '-';
+          Bright_time = 0;
+          break;
+        }
+        case 3:
+        {
+          if (!Process)
+            Process = 3;
+          break;
+        }
+        case 7:
+        {
+          Str[Str_len++] = ' ';
+          Space_num++;
+          break;
+        }
+        default:
+          break;
+        }
+        if (Dark_time > 7 && !Process)
+        {
+          Process = 8;
+        }
+      }
+    }
+  }
+  default:
+    break;
+  }
+  /* USER CODE END Callback01 */
 }
 
 /* Private application code --------------------------------------------------*/
