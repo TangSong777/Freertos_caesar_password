@@ -49,8 +49,8 @@ typedef enum
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define Bright GPIO_PIN_SET
-#define Dark GPIO_PIN_RESET
+#define Bright GPIO_PIN_SET // 接收到亮信号
+#define Dark GPIO_PIN_RESET // 接收到暗信号
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -60,28 +60,29 @@ typedef enum
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-PUT_STATE PutState = OUTPUT; // 默认为输出信号模�????
-LED_STATE LedState = mode1;
-uint8_t Key_flag = 0;      // 按键标志定义
-uint32_t Bright_time = 0;  // 代表亮起的单位时�????
-uint32_t Dark_time = 0;    // 代表熄灭的单位时�????
-uint8_t Start_ezinput = 0; // 定义弿始接收标忿
-uint8_t Start_input = 0;   // 定义弿始接收标忿
-uint8_t Start_flash = 0;   // 定义弿始转换标忿
-uint8_t Space_num = 0;     // 定义字符串中的空格数
+PUT_STATE PutState = OUTPUT; // 默认为输出信号模式
+LED_STATE LedState = mode1;  // 默认为mode1
 
-uint8_t Receive_morse[100] = {0}; // 定义数组储存摩尔斯密�????
-uint8_t Receive_str[200] = {0};   // 定义数组储存字符�????
-uint8_t Receive_morse_len = 0;    // 定义摩尔斯密码长�????
-uint8_t Receive_str_len = 0;      // 定义字符串长�????
+uint8_t Key_flag = 0; // 按键标志量（0.无 1.单击 3.长按）
 
-uint8_t Transmit_morse[100] = {0};
-uint8_t Transmit_morse_len = 0;
+uint32_t Bright_time = 0; // 代表亮起的单位时间
+uint32_t Dark_time = 0;   // 代表熄灭的单位时间
 
-uint8_t Start_receive = 0;
-uint8_t Start_transmit = 0;
-uint8_t Process = 0;
-uint8_t T = 0; // 定义T
+uint8_t Receive_morse[100] = {0}; // 数组储存接收摩尔斯密码
+uint8_t Receive_str[200] = {0};   // 数组储存接收字符串
+uint8_t Receive_morse_len = 0;    // 接收摩尔斯密码长度
+uint8_t Receive_str_len = 0;      // 接收字符串长度
+uint8_t Space_num = 0;            // 接收字符串中的空格数
+
+uint8_t Transmit_morse[100] = {0}; // 数组储存发送摩尔斯密码
+uint8_t Transmit_morse_len = 0;    // 发送摩尔斯密码长度
+
+uint8_t Start_receive = 0;  // 串口发送后启动接收信号
+uint8_t Start_transmit = 0; // 串口发送后启动发送信号
+uint8_t Start_ezinput = 0;  // 开始EZINPUT模式
+uint8_t Start_input = 0;    // 开始INPUT模式
+uint8_t Process = 0;        // 处理信号进程
+uint8_t T = 0;              // 定义T
 /* USER CODE END Variables */
 /* Definitions for ProcessTask */
 osThreadId_t ProcessTaskHandle;
@@ -129,6 +130,12 @@ const osSemaphoreAttr_t Usart_attributes = {
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
+
+/**
+ * @brief 按下按键就退出的延时函数
+ *
+ * @param ms：时间（ms）
+ */
 void Delay_break(uint32_t ms)
 {
   for (uint16_t i = 0; i < ms / 10; i++)
@@ -139,6 +146,13 @@ void Delay_break(uint32_t ms)
       osDelay(10);
   }
 }
+/**
+ * @brief 接收字符串后解析密码
+ *
+ * @param str：接收字符串
+ * @param str_len：接收字符串的长度
+ * @param t：第t位字母替换为第一个字母，以此类推
+ */
 void Transform_password(uint8_t str[], uint8_t str_len, uint8_t t)
 {
   for (int i = 0; i < str_len; i++)
@@ -149,7 +163,14 @@ void Transform_password(uint8_t str[], uint8_t str_len, uint8_t t)
     }
   };
 }
-
+/**
+ * @brief 用于检测字符串前len位是否相同
+ *
+ * @param str1：第一个字符串
+ * @param str2：第二个字符串
+ * @param len：检测长度
+ * @return int
+ */
 int Judge_str(uint8_t str1[], const char str2[], int len)
 {
   for (int i = 0; i < len; i++)
@@ -161,21 +182,25 @@ int Judge_str(uint8_t str1[], const char str2[], int len)
   }
   return 1;
 }
-
+/**
+ * @brief 接收到的摩尔斯密码转换成字符串
+ *
+ * @param receive_morse：接收摩尔斯密码
+ * @param receive_str：接收字符串
+ * @param receive_morse_len：摩尔斯密码长度
+ * @param receive_str_len：转换后的摩尔斯密码储存在这一位
+ */
 void Morse_to_str(uint8_t receive_morse[], uint8_t receive_str[], uint8_t receive_morse_len, uint8_t receive_str_len)
 {
   switch (receive_morse_len)
   {
   case 1:
-  {
     if (Judge_str(receive_morse, ".", receive_morse_len))
       receive_str[receive_str_len] = 'e';
     if (Judge_str(receive_morse, "-", receive_morse_len))
       receive_str[receive_str_len] = 't';
     break;
-  }
   case 2:
-  {
     if (Judge_str(receive_morse, ".-", receive_morse_len))
       receive_str[receive_str_len] = 'a';
     if (Judge_str(receive_morse, "..", receive_morse_len))
@@ -185,9 +210,7 @@ void Morse_to_str(uint8_t receive_morse[], uint8_t receive_str[], uint8_t receiv
     if (Judge_str(receive_morse, "-.", receive_morse_len))
       receive_str[receive_str_len] = 'n';
     break;
-  }
   case 3:
-  {
     if (Judge_str(receive_morse, "-..", receive_morse_len))
       receive_str[receive_str_len] = 'd';
     if (Judge_str(receive_morse, "--.", receive_morse_len))
@@ -205,9 +228,7 @@ void Morse_to_str(uint8_t receive_morse[], uint8_t receive_str[], uint8_t receiv
     if (Judge_str(receive_morse, ".--", receive_morse_len))
       receive_str[receive_str_len] = 'w';
     break;
-  }
   case 4:
-  {
     if (Judge_str(receive_morse, "-...", receive_morse_len))
       receive_str[receive_str_len] = 'b';
     if (Judge_str(receive_morse, "-.-.", receive_morse_len))
@@ -234,16 +255,27 @@ void Morse_to_str(uint8_t receive_morse[], uint8_t receive_str[], uint8_t receiv
       receive_str[receive_str_len] = 'z';
     break;
   }
-  }
 }
-void Assign_str(uint8_t morse[], const uint8_t str[], uint8_t len)
+/**
+ * @brief 快速分配数据
+ *
+ * @param morse：摩尔斯数组
+ * @param str:要分配的数据
+ * @param len：分配数据长度
+ */
+void Assign_str(uint8_t transmit_morse[], const uint8_t str[], uint8_t len)
 {
   for (int i = 0; i < len; i++)
-  {
-    morse[Transmit_morse_len++] = str[i];
-  }
-  morse[Transmit_morse_len++] = 'l';
+    transmit_morse[Transmit_morse_len++] = str[i];
+  transmit_morse[Transmit_morse_len++] = 'l';
 }
+/**
+ * @brief 串口接收到的字符串转换成摩尔斯密码
+ *
+ * @param transmit_str：串口接收到的字符串
+ * @param transmit_morse：要转化的摩尔斯密码
+ * @param transmit_str_len：串口接收到的字符串长度
+ */
 void Str_to_morse(uint8_t transmit_str[], uint8_t transmit_morse[], uint8_t transmit_str_len)
 {
   for (int i = 0; i < transmit_str_len; i++)
@@ -337,7 +369,12 @@ void Str_to_morse(uint8_t transmit_str[], uint8_t transmit_morse[], uint8_t tran
   }
   transmit_morse[Transmit_morse_len - 1] = 's';
 }
-
+/**
+ * @brief 将摩尔斯密码转换成信号并发送
+ *
+ * @param transmit_morse：摩尔斯密码
+ * @param transmit_morse_len：摩尔斯密码长度
+ */
 void Morse_to_signal(uint8_t transmit_morse[], uint8_t transmit_morse_len)
 {
   for (int i = 0; i < transmit_morse_len; i++)
@@ -458,22 +495,22 @@ void MX_FREERTOS_Init(void)
 void StartProcessTask(void *argument)
 {
   /* USER CODE BEGIN StartProcessTask */
-  HAL_UART_Receive_IT(&huart2, (uint8_t *)RxTemp, 1);
-  Key_Init(KEY0, KEY_GPIO_Port, KEY_Pin, PULL_UP);
-  osTimerStart(DetectTimerHandle, 10); // 10代表回调函数回调周期
+  HAL_UART_Receive_IT(&huart2, (uint8_t *)RxTemp, 1); // 串口启动
+  Key_Init(KEY0, KEY_GPIO_Port, KEY_Pin, PULL_UP);    // 按键初始化
+  osTimerStart(DetectTimerHandle, 10);                // 启动Timer（周期10ms）
   /* Infinite loop */
-  while (1)
+  while (1) // 处理信号
   {
     switch (Process)
     {
-    case 1:
+    case 1: // 间隔一个单位时间
       if (Bright_time == 1)
         Receive_morse[Receive_morse_len++] = '.';
       else if (Bright_time == 3)
         Receive_morse[Receive_morse_len++] = '-';
       Bright_time = 0;
       break;
-    case 3:
+    case 3: // 间隔三个单位时间
       printf("Morse:");
       for (int i = 0; i < Receive_morse_len; i++)
         printf("%c", Receive_morse[i]);
@@ -486,11 +523,11 @@ void StartProcessTask(void *argument)
       printf("\r\n");
       Process = 0;
       break;
-    case 7:
+    case 7: // 间隔七个单位时间
       Receive_str[Receive_str_len++] = ' ';
       Space_num++;
       break;
-    case 8:
+    case 8: // 间隔时间大于七,发送字符串
       Receive_str[--Receive_str_len] = 0;
       Space_num--;
       T = (Receive_str_len - Space_num) % 7;
@@ -530,23 +567,23 @@ void StartReceiveDataTask(void *argument)
   /* Infinite loop */
   while (1)
   {
-    osSemaphoreAcquire(UsartHandle, osWaitForever); // 等待二�?�信号量
+    osSemaphoreAcquire(UsartHandle, osWaitForever); // 等待二值信号量
     if (RxFlag == 1)                                // 数据接收完成
     {
-      for (int i = 0; i < RxCounter; i++) // 打印接收数组存储的内�????
+      for (int i = 0; i < RxCounter; i++) // 打印接收数组存储的内容
         printf("%c", RxBuffer[i]);
-      printf("\r\n"); // 打印完成换行
-      RxFlag = 0;     // 接收标志清零
-      Str_to_morse(RxBuffer, Transmit_morse, RxCounter);
-      memset(RxBuffer, 0, 2048); // 清空接收数组
+      printf("\r\n");                                    // 打印完成换行
+      RxFlag = 0;                                        // 接收标志清零
+      Str_to_morse(RxBuffer, Transmit_morse, RxCounter); // 转换接收字符串到摩尔斯密码
+      memset(RxBuffer, 0, 2048);                         // 清空接收数组
       RxCounter = 0;
     }
     printf("Morse:");
-    for (int i = 0; i < Transmit_morse_len; i++) // 打印接收数组存储的内�????
+    for (int i = 0; i < Transmit_morse_len; i++)
       printf("%c", Transmit_morse[i]);
-    printf("\r\n");
-    Start_receive = 1;
-    Start_transmit = 1;
+    printf("\r\n");     // 打印转换后的摩尔斯密码
+    Start_receive = 1;  // 启动接收
+    Start_transmit = 1; // 启动发送
   }
   /* USER CODE END StartReceiveDataTask */
 }
@@ -564,24 +601,23 @@ void StartReceiveTask(void *argument)
   /* Infinite loop */
   while (1)
   {
-    switch (PutState)
+    switch (PutState) // 仅用于EZINPUT模式
     {
     case EZINPUT:
-    {
       if (HAL_GPIO_ReadPin(Light_input_GPIO_Port, Light_input_Pin) == Bright)
       {
         Bright_time++;
-        Start_ezinput = 1;
+        Start_ezinput = 1; // 检测到第一个光信号后启动后续检测
       }
       if (HAL_GPIO_ReadPin(Light_input_GPIO_Port, Light_input_Pin) == Dark && Start_ezinput)
         Dark_time++;
-      if (Bright_time > 350 || Dark_time > 350)
+      if (Bright_time > 350 || Dark_time > 350) // 错误提醒并重置
       {
         printf("Error in the ReceiveSignal!\r\n");
         Bright_time = 0;
         Dark_time = 0;
       }
-      if (Bright_time / 10 == Dark_time / 10)
+      if (Bright_time / 10 == Dark_time / 10) // 误差容忍
       {
         switch (Bright_time / 10)
         {
@@ -612,7 +648,6 @@ void StartReceiveTask(void *argument)
         }
       }
       break;
-    }
     default:
       break;
     }
@@ -643,7 +678,6 @@ void StartTransmitTask(void *argument)
         switch (LedState)
         {
         case mode1:
-        {
           HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
           HAL_GPIO_WritePin(Light_output_GPIO_Port, Light_output_Pin, GPIO_PIN_SET);
           Delay_break(1000);
@@ -651,9 +685,7 @@ void StartTransmitTask(void *argument)
           HAL_GPIO_WritePin(Light_output_GPIO_Port, Light_output_Pin, GPIO_PIN_RESET);
           Delay_break(1000);
           break;
-        }
         case mode2:
-        {
           HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
           HAL_GPIO_WritePin(Light_output_GPIO_Port, Light_output_Pin, GPIO_PIN_SET);
           Delay_break(2000);
@@ -661,9 +693,7 @@ void StartTransmitTask(void *argument)
           HAL_GPIO_WritePin(Light_output_GPIO_Port, Light_output_Pin, GPIO_PIN_RESET);
           Delay_break(2000);
           break;
-        }
         case mode3:
-        {
           HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
           HAL_GPIO_WritePin(Light_output_GPIO_Port, Light_output_Pin, GPIO_PIN_SET);
           Delay_break(3000);
@@ -671,7 +701,6 @@ void StartTransmitTask(void *argument)
           HAL_GPIO_WritePin(Light_output_GPIO_Port, Light_output_Pin, GPIO_PIN_RESET);
           Delay_break(3000);
           break;
-        }
         }
       }
       break;
@@ -679,7 +708,7 @@ void StartTransmitTask(void *argument)
       if (Start_transmit)
       {
         printf("Transmit!\r\n");
-        osDelay(20);
+        osDelay(20); // 延时一定时间有效提高检测成功率
         Morse_to_signal(Transmit_morse, Transmit_morse_len);
         memset(Transmit_morse, 0, Transmit_morse_len);
         Transmit_morse_len = 0;
@@ -709,7 +738,7 @@ void StartKeyScanTask(void *argument)
   while (1)
   {
     osDelay(10);
-    Key_pressscan(KEY0, &Key_flag);
+    Key_pressscan(KEY0, &Key_flag); // 仅检测单击与长按,单击检测为松开按键一瞬间
     if (Key_flag == 1)
     {
       HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
@@ -746,20 +775,14 @@ void StartKeyScanTask(void *argument)
       switch (PutState)
       {
       case OUTPUT:
-      {
         printf("OUTPUT.\r\n");
         break;
-      }
       case EZINPUT:
-      {
         printf("EZINPUT.\r\n");
         break;
-      }
       case INPUT:
-      {
         printf("INPUT.\r\n");
         break;
-      }
       default:
         break;
       }
@@ -774,7 +797,7 @@ void StartKeyScanTask(void *argument)
 void Callback1(void *argument)
 {
   /* USER CODE BEGIN Callback01 */
-  switch (PutState)
+  switch (PutState) // 仅用于INPUT模式
   {
   case INPUT:
   {
@@ -796,30 +819,22 @@ void Callback1(void *argument)
         switch (Dark_time)
         {
         case 1:
-        {
           if (!Process)
             Process = 1;
           break;
-        }
         case 3:
-        {
           if (!Process)
             Process = 3;
           break;
-        }
         case 7:
-        {
           if (!Process)
             Process = 7;
           break;
-        }
         default:
           break;
         }
         if (Dark_time > 7 && !Process)
-        {
           Process = 8;
-        }
       }
     }
   }

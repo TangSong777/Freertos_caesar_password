@@ -46,11 +46,10 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-uint8_t RxBuffer[2048] = {0}; // 串口数据存储BUFF		长度2048
-uint8_t RxFlag = 0;           // 串口接收完成标志�??
-uint16_t RxCounter = 0;       // 串口长度计数
-uint8_t RxTemp[1] = {0};      // 串口数据接收暂存BUFF	长度1
-
+uint8_t RxBuffer[2048] = {0};     // 串口数据存储BUFF		长度2048
+uint8_t RxFlag = 0;               // 串口接收完成标志
+uint16_t RxCounter = 0;           // 串口长度计数
+uint8_t RxTemp[1] = {0};          // 串口数据接收暂存BUFF	长度1
 extern osSemaphoreId UsartHandle; // 操作系统定义的互斥量
 /********************************************************************************/
 /* USER CODE END PV */
@@ -168,19 +167,19 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) // 锟斤拷锟斤拷2锟斤拷锟斤拷锟斤拷苫氐锟斤拷锟斤拷锟�???
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) // 串口2接收完成回调函数
 {
   if (huart->Instance == USART2)
   {
-    __HAL_TIM_SET_COUNTER(&htim9, 0); // 锟斤拷锟斤拷锟绞憋拷锟�?9锟斤拷锟斤拷�??
-    if (RxCounter == 0)               // 锟斤拷锟斤拷锟斤拷锟斤拷�??锟斤拷锟矫恐★拷锟斤拷菘锟酵凤拷锟斤拷锟斤拷锟斤拷锟绞憋拷锟�???
-    {
-      __HAL_TIM_CLEAR_FLAG(&htim9, TIM_FLAG_UPDATE); // 锟斤拷锟斤拷卸媳锟街撅拷?
-      HAL_TIM_Base_Start_IT(&htim9);                 // 锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷时锟斤�??
-    }
-    RxBuffer[RxCounter] = RxTemp[0];                    // 锟斤拷锟斤拷锟斤拷锟捷凤拷锟斤拷锟斤拷锟斤拷锟斤拷锟�???
-    RxCounter++;                                        // 锟斤拷锟斤拷锟斤拷锟斤拷1
-    HAL_UART_Receive_IT(&huart2, (uint8_t *)RxTemp, 1); // 锟斤拷锟斤拷使锟斤拷锟叫讹拷
+    __HAL_TIM_SET_COUNTER(&htim9, 0);                   // 清除定时器9计数值
+    if (RxCounter == 0)                                 // 如果是首字符（每帧数据开头）则开启定时器
+    {                                                   //
+      __HAL_TIM_CLEAR_FLAG(&htim9, TIM_FLAG_UPDATE);    // 清除中断标志位
+      HAL_TIM_Base_Start_IT(&htim9);                    // 开启基本定时器
+    }                                                   //
+    RxBuffer[RxCounter] = RxTemp[0];                    // 缓存数据放入接收数组
+    RxCounter++;                                        // 计数器加1
+    HAL_UART_Receive_IT(&huart2, (uint8_t *)RxTemp, 1); // 重新使能中断
   }
 }
 /* USER CODE END 4 */
@@ -205,9 +204,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* USER CODE BEGIN Callback 1 */
   if (htim->Instance == TIM9)
   {
-    RxFlag = 1;                      // 锟斤拷锟秸憋拷志位锟斤拷1
-    HAL_TIM_Base_Stop_IT(&htim9);    // 锟截闭讹拷时锟斤�??
-    osSemaphoreRelease(UsartHandle); // 锟酵放讹拷�?�锟脚猴拷锟斤拷锟斤拷锟斤拷锟诫串锟斤拷锟斤拷锟斤拷
+    RxFlag = 1;                      // 接收标志位置1
+    HAL_TIM_Base_Stop_IT(&htim9);    // 关闭定时器
+    osSemaphoreRelease(UsartHandle); // 释放二值信号量，进入串口任务
   }
   /* USER CODE END Callback 1 */
 }
