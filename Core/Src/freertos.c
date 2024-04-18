@@ -564,9 +564,61 @@ void StartReceiveTask(void *argument)
   /* Infinite loop */
   while (1)
   {
+    switch (PutState)
+    {
+    case EZINPUT:
+    {
+      if (HAL_GPIO_ReadPin(Light_input_GPIO_Port, Light_input_Pin) == Bright)
+      {
+        Bright_time++;
+        Start_ezinput = 1;
+      }
+      if (HAL_GPIO_ReadPin(Light_input_GPIO_Port, Light_input_Pin) == Dark && Start_ezinput)
+        Dark_time++;
+      if (Bright_time > 350 || Dark_time > 350)
+      {
+        printf("Error in the ReceiveSignal!\r\n");
+        Bright_time = 0;
+        Dark_time = 0;
+      }
+      if (Bright_time / 10 == Dark_time / 10)
+      {
+        switch (Bright_time / 10)
+        {
+        case 10:
+        {
+          printf("Fight!\r\n");
+          Bright_time = 0;
+          Dark_time = 0;
+          Start_ezinput = 0;
+          break;
+        }
+        case 20:
+        {
+          printf("Retreat!\r\n");
+          Bright_time = 0;
+          Dark_time = 0;
+          Start_ezinput = 0;
+          break;
+        }
+        case 30:
+        {
+          printf("Come!\r\n");
+          Bright_time = 0;
+          Dark_time = 0;
+          Start_ezinput = 0;
+          break;
+        }
+        }
+      }
+      break;
+    }
+    default:
+      break;
+    }
     osDelay(10);
+    /* USER CODE END StartReceiveTask */
   }
-  /* USER CODE END StartReceiveTask */
 }
 
 /* USER CODE BEGIN Header_StartTransmitTask */
