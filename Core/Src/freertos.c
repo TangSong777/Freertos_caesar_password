@@ -22,7 +22,6 @@
 #include "task.h"
 #include "main.h"
 #include "cmsis_os.h"
-
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "usart.h"
@@ -44,7 +43,7 @@ typedef enum
   mode1 = 0,
   mode2 = 1,
   mode3 = 2
-} LED_STATE;
+} LED_STATE; // LED灯的模式（T：2s，4s，6s）
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -82,7 +81,7 @@ uint8_t Start_transmit = 0; // 串口发送后启动发送信号
 uint8_t Start_ezinput = 0;  // 开始EZINPUT模式
 uint8_t Start_input = 0;    // 开始INPUT模式
 uint8_t Process = 0;        // 处理信号进程
-uint8_t T = 0;              // 定义T
+int T = 0;                  // 定义T
 /* USER CODE END Variables */
 /* Definitions for ProcessTask */
 osThreadId_t ProcessTaskHandle;
@@ -153,7 +152,7 @@ void Delay_break(uint32_t ms)
  * @param str_len：接收字符串的长度
  * @param t：第t位字母替换为第一个字母，以此类推
  */
-void Transform_password(uint8_t str[], uint8_t str_len, uint8_t t)
+void Transform_password(uint8_t str[], uint8_t str_len, int t)
 {
   for (int i = 0; i < str_len; i++)
   {
@@ -509,6 +508,7 @@ void StartProcessTask(void *argument)
       else if (Bright_time == 3)
         Receive_morse[Receive_morse_len++] = '-';
       Bright_time = 0;
+      Process = 0;
       break;
     case 3: // 间隔三个单位时间
       printf("Morse:");
@@ -526,6 +526,7 @@ void StartProcessTask(void *argument)
     case 7: // 间隔七个单位时间
       Receive_str[Receive_str_len++] = ' ';
       Space_num++;
+      Process = 0;
       break;
     case 8: // 间隔时间大于七,发送字符串
       Receive_str[--Receive_str_len] = 0;
@@ -534,7 +535,7 @@ void StartProcessTask(void *argument)
       printf("Str_len:%d\r\n", Receive_str_len);
       printf("Space:%d\r\n", Space_num);
       printf("T:%d\r\n", T);
-      Transform_password(Receive_str, Receive_str_len, T);
+      Transform_password(Receive_str, Receive_str_len, T - 1);
       printf("EndStr:");
       for (int i = 0; i < Receive_str_len; i++)
         printf("%c", Receive_str[i]);
@@ -548,7 +549,7 @@ void StartProcessTask(void *argument)
       Process = 0;
       break;
     }
-    osDelay(1);
+    osDelay(5);
   }
 
   /* USER CODE END StartProcessTask */
